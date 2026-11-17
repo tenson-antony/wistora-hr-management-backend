@@ -22,6 +22,7 @@ class Department(models.Model):
         blank=True,
         related_name='headed_departments'
     )
+    
 
     created_at = models.DateTimeField(auto_now_add=True)
 
