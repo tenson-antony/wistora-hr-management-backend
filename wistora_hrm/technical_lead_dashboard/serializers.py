@@ -9,6 +9,7 @@ from admin_dashboard.models import (
     Subject,
     ClassSubjectAssignment,
     AttendanceRecord,
+    StudentAttendance,
 )
 
 
@@ -172,14 +173,82 @@ class TechnicalLeadClassSubjectAssignmentSerializer(
 # 7. STUDENT ATTENDANCE
 # --------------------------------------------------
 
-class TechnicalLeadStudentAttendanceSerializer(
-    serializers.Serializer
-):
-    """
-    Placeholder for student attendance.
 
-    The current AttendanceRecord model is for employees.
-    We will create a separate student attendance model
-    before implementing student attendance APIs.
-    """
-    pass
+class TechnicalLeadStudentAttendanceSerializer(serializers.ModelSerializer):
+
+    student_name = serializers.CharField(
+        source="student.name",
+        read_only=True
+    )
+
+    class_name = serializers.CharField(
+        source="school_class.name",
+        read_only=True
+    )
+
+    recorded_by_name = serializers.CharField(
+        source="recorded_by.username",
+        read_only=True,
+        allow_null=True
+    )
+
+    class Meta:
+        model = StudentAttendance
+
+        fields = [
+            "id",
+            "student",
+            "student_name",
+            "school_class",
+            "class_name",
+            "date",
+            "status",
+            "remarks",
+            "recorded_by",
+            "recorded_by_name",
+            "created_at",
+            "updated_at",
+        ]
+
+        read_only_fields = [
+            "id",
+            "recorded_by",
+            "created_at",
+            "updated_at",
+        ]
+
+    def validate(self, attrs):
+
+        # Get student and class during creation or update
+        student = attrs.get(
+            "student",
+            getattr(self.instance, "student", None)
+        )
+
+        school_class = attrs.get(
+            "school_class",
+            getattr(self.instance, "school_class", None)
+        )
+
+        # Ensure student and class are provided
+        if not student or not school_class:
+            raise serializers.ValidationError(
+                "Student and class are required."
+            )
+
+        # Check whether the student is actively enrolled
+        enrollment_exists = StudentEnrollment.objects.filter(
+            student=student,
+            school_class=school_class,
+            status="active"
+        ).exists()
+
+        if not enrollment_exists:
+            raise serializers.ValidationError({
+                "student": (
+                    "This student is not actively enrolled "
+                    "in the selected class."
+                )
+            })
+
+        return attrs

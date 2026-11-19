@@ -298,6 +298,80 @@ class StudentEnrollment(models.Model):
         return f"{self.student.name} - {self.school_class}"
 
 
+
+
+class StudentAttendance(models.Model):
+
+    ATTENDANCE_STATUS = [
+        ("present", "Present"),
+        ("absent", "Absent"),
+        ("late", "Late"),
+        ("excused", "Excused"),
+    ]
+
+    student = models.ForeignKey(
+        "Student",
+        on_delete=models.CASCADE,
+        related_name="attendance_records"
+    )
+
+    school_class = models.ForeignKey(
+        "SchoolClass",
+        on_delete=models.PROTECT,
+        related_name="student_attendance"
+    )
+
+    date = models.DateField(
+        default=timezone.localdate
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=ATTENDANCE_STATUS,
+        default="present"
+    )
+
+    remarks = models.TextField(
+        blank=True,
+        null=True
+    )
+
+    recorded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="recorded_student_attendance"
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True
+    )
+
+    class Meta:
+        ordering = ["-date", "student__name"]
+
+        constraints = [
+            models.UniqueConstraint(
+                fields=["student", "school_class", "date"],
+                name="unique_student_class_attendance_per_day"
+            )
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.student.name} - "
+            f"{self.school_class.name} - "
+            f"{self.date} - "
+            f"{self.status}"
+        )
+
+
+
 # =====================================================
 # 10. LEAVE MANAGEMENT
 # =====================================================

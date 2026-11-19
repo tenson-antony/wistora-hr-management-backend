@@ -4,6 +4,7 @@ from rest_framework.routers import DefaultRouter
 
 from .views import (
     TechnicalLeadEmployeeViewSet,
+    TechnicalLeadStudentAttendanceViewSet,
     TechnicalLeadStudentViewSet,
     TechnicalLeadStudentEnrollmentViewSet,
     TechnicalLeadClassViewSet,
@@ -82,6 +83,12 @@ router.register(
     "class-subject-assignments",
     TechnicalLeadClassSubjectAssignmentViewSet,
     basename="technical-lead-assignments"
+)
+
+router.register(
+    r"student-attendance",
+    TechnicalLeadStudentAttendanceViewSet,
+    basename="technical-lead-student-attendance"
 )
 
 
