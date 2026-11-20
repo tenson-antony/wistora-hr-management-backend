@@ -39,14 +39,22 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'employee',
-    'admin_dashboard',
+    
     'rest_framework',
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
+    
+    'corsheaders',
+
+    'authentication',
+    'admin_dashboard',
+    'hr_dashboard',
+    'technical_lead_dashboard',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -54,7 +62,6 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
-
 ROOT_URLCONF = 'wistora_hrm.urls'
 
 TEMPLATES = [
@@ -72,7 +79,11 @@ TEMPLATES = [
     },
 ]
 
+
+
 WSGI_APPLICATION = 'wistora_hrm.wsgi.application'
+
+ASGI_APPLICATION = 'wistora_hrm.asgi.application'
 
 
 # Database
@@ -121,6 +132,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.1/howto/static-files/
 
 STATIC_URL = 'static/'
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
 # Email
@@ -165,3 +177,9 @@ SIMPLE_JWT = {
     'UPDATE_LAST_LOGIN': True,
 
 }
+
+# Development only. Replace with your actual frontend origin later.
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+]
