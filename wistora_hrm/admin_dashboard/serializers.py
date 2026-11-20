@@ -1,13 +1,14 @@
 
 from rest_framework import serializers
+from django.contrib.auth.models import Group
 
 from .models import (
     Department,
     Designation,
     Employee,
     AcademicSession,
-    SchoolClass,
     Subject,
+    SchoolClass,
     ClassSubjectAssignment,
     Student,
     StudentEnrollment,
@@ -27,15 +28,13 @@ class DepartmentSerializer(serializers.ModelSerializer):
 
     department_head_name = serializers.CharField(
         source='department_head.name',
-        read_only=True
+        read_only=True,
+        allow_null=True
     )
 
     class Meta:
         model = Department
-
         fields = '__all__'
-
-        read_only_fields = ['created_at']
 
 
 # =====================================================
@@ -46,7 +45,6 @@ class DesignationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Designation
-
         fields = '__all__'
 
 
@@ -58,28 +56,53 @@ class EmployeeSerializer(serializers.ModelSerializer):
 
     department_name = serializers.CharField(
         source='department.name',
-        read_only=True
+        read_only=True,
+        allow_null=True
     )
 
     designation_name = serializers.CharField(
         source='designation.name',
-        read_only=True
+        read_only=True,
+        allow_null=True
     )
 
     username = serializers.CharField(
         source='user.username',
-        read_only=True
+        read_only=True,
+        allow_null=True
     )
+
+    reporting_manager_name = serializers.CharField(
+        source='reporting_manager.name',
+        read_only=True,
+        allow_null=True
+    )
+
+    def validate_reporting_manager(self, manager):
+        if manager is None:
+            return manager
+
+        if self.instance and manager.pk == self.instance.pk:
+            raise serializers.ValidationError(
+                "An employee cannot report to themselves."
+            )
+
+        if manager.user is None:
+            raise serializers.ValidationError(
+                "The reporting manager must have a linked user account."
+            )
+
+        if not manager.user.groups.filter(name='Technical Lead').exists():
+            raise serializers.ValidationError(
+                "The reporting manager must belong to the Technical Lead role."
+            )
+
+        return manager
 
     class Meta:
         model = Employee
-
         fields = '__all__'
-
-        read_only_fields = [
-            'created_at',
-            'updated_at'
-        ]
+        read_only_fields = ('created_at', 'updated_at')
 
 
 # =====================================================
@@ -90,13 +113,10 @@ class AcademicSessionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = AcademicSession
-
         fields = '__all__'
-
-        read_only_fields = ['created_at']
+        read_only_fields = ('created_at',)
 
     def validate(self, data):
-
         start_date = data.get(
             'start_date',
             getattr(self.instance, 'start_date', None)
@@ -108,9 +128,9 @@ class AcademicSessionSerializer(serializers.ModelSerializer):
         )
 
         if start_date and end_date and end_date <= start_date:
-            raise serializers.ValidationError(
-                "End date must be after start date."
-            )
+            raise serializers.ValidationError({
+                'end_date': 'End date must be later than start date.'
+            })
 
         return data
 
@@ -123,7 +143,6 @@ class SubjectSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Subject
-
         fields = '__all__'
 
 
@@ -133,22 +152,19 @@ class SubjectSerializer(serializers.ModelSerializer):
 
 class SchoolClassSerializer(serializers.ModelSerializer):
 
-    academic_session_name = serializers.CharField(
-        source='academic_session.name',
-        read_only=True
-    )
-
     subjects = serializers.PrimaryKeyRelatedField(
         many=True,
         read_only=True
     )
 
+    academic_session_name = serializers.CharField(
+        source='academic_session.name',
+        read_only=True
+    )
+
     class Meta:
         model = SchoolClass
-
         fields = '__all__'
-
-        read_only_fields = ['created_at']
 
 
 # =====================================================
@@ -175,10 +191,8 @@ class ClassSubjectAssignmentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ClassSubjectAssignment
-
         fields = '__all__'
-
-        read_only_fields = ['assigned_at']
+        read_only_fields = ('assigned_at',)
 
 
 # =====================================================
@@ -189,13 +203,8 @@ class StudentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Student
-
         fields = '__all__'
-
-        read_only_fields = [
-            'created_at',
-            'updated_at'
-        ]
+        read_only_fields = ('created_at', 'updated_at')
 
 
 # =====================================================
@@ -221,10 +230,8 @@ class StudentEnrollmentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = StudentEnrollment
-
         fields = '__all__'
-
-        read_only_fields = ['created_at']
+        read_only_fields = ('created_at',)
 
 
 # =====================================================
@@ -246,16 +253,17 @@ class LeaveRequestSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = LeaveRequest
-
         fields = '__all__'
 
-        read_only_fields = [
+        # Approval must happen through approve/reject actions.
+        read_only_fields = (
+            'status',
+            'reviewed_by',
+            'reviewed_at',
             'created_at',
-            'reviewed_at'
-        ]
+        )
 
     def validate(self, data):
-
         start_date = data.get(
             'start_date',
             getattr(self.instance, 'start_date', None)
@@ -267,9 +275,9 @@ class LeaveRequestSerializer(serializers.ModelSerializer):
         )
 
         if start_date and end_date and end_date < start_date:
-            raise serializers.ValidationError(
-                "Leave end date cannot be before start date."
-            )
+            raise serializers.ValidationError({
+                'end_date': 'End date cannot be before start date.'
+            })
 
         return data
 
@@ -287,13 +295,10 @@ class AttendanceRecordSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = AttendanceRecord
-
         fields = '__all__'
-
-        read_only_fields = ['created_at']
+        read_only_fields = ('created_at',)
 
     def validate(self, data):
-
         check_in = data.get(
             'check_in',
             getattr(self.instance, 'check_in', None)
@@ -305,9 +310,9 @@ class AttendanceRecordSerializer(serializers.ModelSerializer):
         )
 
         if check_in and check_out and check_out < check_in:
-            raise serializers.ValidationError(
-                "Check-out time cannot be before check-in time."
-            )
+            raise serializers.ValidationError({
+                'check_out': 'Check-out cannot be earlier than check-in.'
+            })
 
         return data
 
@@ -320,10 +325,8 @@ class SystemSettingSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SystemSetting
-
         fields = '__all__'
-
-        read_only_fields = ['updated_at']
+        read_only_fields = ('updated_at',)
 
 
 # =====================================================
@@ -340,18 +343,9 @@ class AuditLogSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = AuditLog
-
         fields = '__all__'
+        read_only_fields = tuple(field.name for field in AuditLog._meta.fields)
 
-        read_only_fields = [
-            'id',
-            'user',
-            'action',
-            'module',
-            'description',
-            'ip_address',
-            'created_at',
-        ]
 
 # =====================================================
 # 14. NOTIFICATION SERIALIZER
@@ -359,14 +353,7 @@ class AuditLogSerializer(serializers.ModelSerializer):
 
 class NotificationSerializer(serializers.ModelSerializer):
 
-    username = serializers.CharField(
-        source='recipient.username',
-        read_only=True
-    )
-
     class Meta:
         model = Notification
-
         fields = '__all__'
-
-        read_only_fields = ['created_at']
+        read_only_fields = tuple(field.name for field in Notification._meta.fields)

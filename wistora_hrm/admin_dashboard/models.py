@@ -10,9 +10,7 @@ from django.utils import timezone
 # =====================================================
 
 class Department(models.Model):
-
     name = models.CharField(max_length=150, unique=True)
-
     description = models.TextField(blank=True)
 
     department_head = models.ForeignKey(
@@ -34,9 +32,7 @@ class Department(models.Model):
 # =====================================================
 
 class Designation(models.Model):
-
     name = models.CharField(max_length=100, unique=True)
-
     description = models.TextField(blank=True)
 
     def __str__(self):
@@ -63,15 +59,9 @@ class Employee(models.Model):
         related_name='employee_profile'
     )
 
-    employee_id = models.CharField(
-        max_length=30,
-        unique=True
-    )
-
+    employee_id = models.CharField(max_length=30, unique=True)
     name = models.CharField(max_length=150)
-
     email = models.EmailField(unique=True)
-
     phone = models.CharField(max_length=15, blank=True)
 
     department = models.ForeignKey(
@@ -90,10 +80,16 @@ class Employee(models.Model):
         related_name='employees'
     )
 
-    joining_date = models.DateField(
+    # Employee can report to one Technical Lead
+    reporting_manager = models.ForeignKey(
+        'self',
+        on_delete=models.SET_NULL,
         null=True,
-        blank=True
+        blank=True,
+        related_name='team_members'
     )
+
+    joining_date = models.DateField(null=True, blank=True)
 
     status = models.CharField(
         max_length=20,
@@ -102,7 +98,6 @@ class Employee(models.Model):
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
-
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
@@ -116,14 +111,18 @@ class Employee(models.Model):
 class AcademicSession(models.Model):
 
     name = models.CharField(max_length=100, unique=True)
-
     start_date = models.DateField()
-
     end_date = models.DateField()
-
     is_active = models.BooleanField(default=False)
-
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(end_date__gt=F('start_date')),
+                name='academic_session_end_after_start'
+            )
+        ]
 
     def __str__(self):
         return self.name
@@ -136,12 +135,7 @@ class AcademicSession(models.Model):
 class Subject(models.Model):
 
     name = models.CharField(max_length=100)
-
-    code = models.CharField(
-        max_length=30,
-        unique=True
-    )
-
+    code = models.CharField(max_length=30, unique=True)
     description = models.TextField(blank=True)
 
     def __str__(self):
@@ -155,11 +149,7 @@ class Subject(models.Model):
 class SchoolClass(models.Model):
 
     name = models.CharField(max_length=100)
-
-    section = models.CharField(
-        max_length=20,
-        blank=True
-    )
+    section = models.CharField(max_length=20, blank=True)
 
     academic_session = models.ForeignKey(
         AcademicSession,
@@ -240,26 +230,13 @@ class Student(models.Model):
         ('graduated', 'Graduated'),
     ]
 
-    student_id = models.CharField(
-        max_length=30,
-        unique=True
-    )
-
+    student_id = models.CharField(max_length=30, unique=True)
     name = models.CharField(max_length=150)
-
     email = models.EmailField(blank=True)
-
     phone = models.CharField(max_length=15, blank=True)
 
-    date_of_birth = models.DateField(
-        null=True,
-        blank=True
-    )
-
-    admission_date = models.DateField(
-        null=True,
-        blank=True
-    )
+    date_of_birth = models.DateField(null=True, blank=True)
+    admission_date = models.DateField(null=True, blank=True)
 
     status = models.CharField(
         max_length=20,
@@ -268,7 +245,6 @@ class Student(models.Model):
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
-
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
@@ -300,9 +276,7 @@ class StudentEnrollment(models.Model):
         related_name='enrollments'
     )
 
-    enrollment_date = models.DateField(
-        default=timezone.localdate
-    )
+    enrollment_date = models.DateField(default=timezone.localdate)
 
     status = models.CharField(
         max_length=20,
@@ -324,6 +298,80 @@ class StudentEnrollment(models.Model):
         return f"{self.student.name} - {self.school_class}"
 
 
+
+
+class StudentAttendance(models.Model):
+
+    ATTENDANCE_STATUS = [
+        ("present", "Present"),
+        ("absent", "Absent"),
+        ("late", "Late"),
+        ("excused", "Excused"),
+    ]
+
+    student = models.ForeignKey(
+        "Student",
+        on_delete=models.CASCADE,
+        related_name="attendance_records"
+    )
+
+    school_class = models.ForeignKey(
+        "SchoolClass",
+        on_delete=models.PROTECT,
+        related_name="student_attendance"
+    )
+
+    date = models.DateField(
+        default=timezone.localdate
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=ATTENDANCE_STATUS,
+        default="present"
+    )
+
+    remarks = models.TextField(
+        blank=True,
+        null=True
+    )
+
+    recorded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="recorded_student_attendance"
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True
+    )
+
+    class Meta:
+        ordering = ["-date", "student__name"]
+
+        constraints = [
+            models.UniqueConstraint(
+                fields=["student", "school_class", "date"],
+                name="unique_student_class_attendance_per_day"
+            )
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.student.name} - "
+            f"{self.school_class.name} - "
+            f"{self.date} - "
+            f"{self.status}"
+        )
+
+
+
 # =====================================================
 # 10. LEAVE MANAGEMENT
 # =====================================================
@@ -343,9 +391,7 @@ class LeaveRequest(models.Model):
     )
 
     start_date = models.DateField()
-
     end_date = models.DateField()
-
     reason = models.TextField()
 
     status = models.CharField(
@@ -362,11 +408,7 @@ class LeaveRequest(models.Model):
         related_name='reviewed_leave_requests'
     )
 
-    reviewed_at = models.DateTimeField(
-        null=True,
-        blank=True
-    )
-
+    reviewed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -400,24 +442,15 @@ class AttendanceRecord(models.Model):
         related_name='attendance_records'
     )
 
-    date = models.DateField(
-        default=timezone.localdate
-    )
+    date = models.DateField(default=timezone.localdate)
 
     status = models.CharField(
         max_length=20,
         choices=STATUS_CHOICES
     )
 
-    check_in = models.TimeField(
-        null=True,
-        blank=True
-    )
-
-    check_out = models.TimeField(
-        null=True,
-        blank=True
-    )
+    check_in = models.TimeField(null=True, blank=True)
+    check_out = models.TimeField(null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -448,14 +481,8 @@ class AttendanceRecord(models.Model):
 class SystemSetting(models.Model):
 
     organization_name = models.CharField(max_length=200)
-
     organization_email = models.EmailField(blank=True)
-
-    organization_phone = models.CharField(
-        max_length=20,
-        blank=True
-    )
-
+    organization_phone = models.CharField(max_length=20, blank=True)
     address = models.TextField(blank=True)
 
     logo = models.ImageField(
@@ -464,11 +491,7 @@ class SystemSetting(models.Model):
         blank=True
     )
 
-    configuration = models.JSONField(
-        default=dict,
-        blank=True
-    )
-
+    configuration = models.JSONField(default=dict, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
@@ -490,9 +513,7 @@ class AuditLog(models.Model):
     )
 
     action = models.CharField(max_length=100)
-
     module = models.CharField(max_length=100)
-
     description = models.TextField(blank=True)
 
     ip_address = models.GenericIPAddressField(
@@ -519,11 +540,8 @@ class Notification(models.Model):
     )
 
     title = models.CharField(max_length=200)
-
     message = models.TextField()
-
     is_read = models.BooleanField(default=False)
-
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
