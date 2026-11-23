@@ -10,6 +10,8 @@ from .views import (
     TechnicalLeadClassViewSet,
     TechnicalLeadSubjectViewSet,
     TechnicalLeadClassSubjectAssignmentViewSet,
+    TechnicalLeadDashboardOverviewAPIView,
+    TechnicalLeadReportsAPIView,
 )
 
 
@@ -97,5 +99,20 @@ router.register(
 # --------------------------------------------------
 
 urlpatterns = [
-    path("", include(router.urls)),
+    path(
+        "overview/",
+        TechnicalLeadDashboardOverviewAPIView.as_view(),
+        name="technical-lead-overview"
+    ),
+
+    path(
+        "reports/",
+        TechnicalLeadReportsAPIView.as_view(),
+        name="technical-lead-reports"
+    ),
+
+    path(
+        "",
+        include(router.urls)
+    ),
 ]
